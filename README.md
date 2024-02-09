@@ -38,5 +38,5 @@
 - センサーデータの正確さを確保するために、アプリケーションを適切な環境に設置してください。
 
 ## 参考文献
- [JavaScript Robotics: Sensor API (Johnny-Five)]([https://notepm.jp](https://johnny-five.io/api/sensor/)https://johnny-five.io/api/sensor/)
+ [JavaScript Robotics: Sensor API (Johnny-Five)](https://johnny-five.io/api/sensor/)
 
