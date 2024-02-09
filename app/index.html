@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>植物監視アプリケーション</title>
+    <style>
+      /* 追加されたコメント */
+      /* 全体のスタイル設定 */
+    body {
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        margin: 20px;
+        background-color: #f4f4f4;
+        text-align: center;
+    }
+    
+    #container {
+        max-width: 600px;
+        margin: 0 auto;
+        background-color: #fff;
+        padding: 20px;
+        border-radius: 10px;
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    }
+    
+    video, canvas, img {
+        display: block;
+        margin: 10px auto;
+        border-radius: 8px;
+        box-shadow: 0 0 8px rgba(0, 0, 0, 0.1);
+        max-width: 100%;
+    }
+    
+    button, input[type="button"] {
+        margin-bottom: 10px;
+        padding: 10px;
+        font-size: 16px;
+        background-color: #4caf50;
+        color: #fff;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+    }
+    
+    button:hover, input[type="button"]:hover {
+        background-color: #45a049;
+    }
+    
+    p {
+        font-size: 18px;
+        margin-bottom: 5px;
+    }
+    
+    #lightValue, #thermoValue {
+        font-size: 18px;
+        margin-bottom: 10px;
+        font-weight: bold;
+    }
+    </style>
+    
+    <!-- 追加されたスクリプトの読み込み -->
+    <script src="/socket.io/socket.io.js"></script>
+    </head>
+    <body>
+        <div id="container">
+            <h1>植物監視アプリケーション&#x1f333;</h1>
+            
+            <!-- HTML 要素の追加・編集 -->
+            <video id="video" width="320" height="240" autoplay style="display: none;"></video>
+            <canvas id="local" width="320" height="240" style="display: none;"></canvas>
+            <img id="remote" width="320" height="240">
+
+            <h2>照明ボタン&#x1f4a1;</h2>
+            <input id="btnOn" type="button" value="つける">
+            <input id="btnOff" type="button" value="けす">
+
+            <h2>計測値モニター&#x1f5a5;</h2>
+            <div id="lightValue">照度センサー: <span id="lightData">---</span></div>
+            <div id="thermoValue">温度センサー: <span id="thermoData">---</span></div>
+
+            <button id="waterButton">水やり開始</button>
+        </div>
+        
+        <!-- JavaScript の追加・編集 -->
+        <script>
+            const socket = io(); // サーバに接続する
+            const video = document.getElementById("video"); // video要素を取得
+            const local = document.getElementById("local"); // canvas要素を取得
+            const context = local.getContext("2d"); // コンテキストを取得
+            const remote = document.getElementById("remote"); // img要素を取得
+
+            const media = navigator.mediaDevices.getUserMedia({ video: true, audio: false }); // メディアデバイスの取得
+            media.then((stream) => { // メディアデバイスの準備ができたら
+                video.srcObject = stream; // videoにストリームを入れる
+                video.addEventListener("timeupdate", () => { // 映像が更新されたら
+                    context.drawImage(video, 0, 0, 320, 240); // 映像をcanvasに描画
+                    const data = { pict: local.toDataURL() }; // 送信するデータ
+                    socket.emit("video", data); // データを送信
+                });
+            });
+
+            socket.on("video", (data) => { remote.src = data.pict; }); // 映像の受信と表示
+
+            let touching = false; // タッチ中か否か
+            let startingX; // タッチ開始時のx座標
+            let currentAngle = 90; // 現在のサーボ角度
+            let targetAngle = 90; // 目標のサーボ角度
+            socket.emit("servo", { angle: targetAngle }); // 最初にサーボを90度に設定
+
+            remote.addEventListener("touchstart", (ret) => { // タッチ開始時
+                touching = true; // タッチ中
+                startingX = ret.touches.pageX; // タッチ開始座標取得
+            });
+
+            remote.addEventListener("touchmove", (ret) => { // タッチ中
+                if (!touching) { return; } // タッチ中でなければ終了
+                ret.preventDefault(); // スワイプでスクロールしない
+                const endingX = ret.touches.pageX; // 指が動いた後のx座標取得
+                targetAngle = currentAngle + (startingX - endingX) / 5; // スワイプ量で目標角度設定
+                targetAngle = Math.max(30, Math.min(150, targetAngle)); // 角度を制限
+                socket.emit("servo", { angle: targetAngle }); // サーボを指定角度に動かす
+                currentAngle = targetAngle; // 現在の角度を更新
+                startingX = endingX; // 次の開始座標を設定
+            });
+        </script>
+    </body>
+</html>
